@@ -1,44 +1,117 @@
 import { z } from 'zod';
 
-export const ListChannelsRequestSchema = z.object({
-  limit: z
-    .number()
-    .int()
-    .min(1)
-    .max(1000) // Align with Slack API's default limit (conversations.list is actually cursor-based)
-    .optional()
-    .default(100)
-    .describe('Maximum number of channels to return (default 100)'),
-  cursor: z
-    .string()
-    .optional()
-    .describe('Pagination cursor for next page of results'),
-});
+//
+// Basic schemas
+//
 
-export const PostMessageRequestSchema = z.object({
-  channel_id: z.string().describe('The ID of the channel to post to'),
-  text: z.string().describe('The message text to post'),
-});
-
-export const ReplyToThreadRequestSchema = z.object({
-  channel_id: z
-    .string()
-    .describe('The ID of the channel containing the thread'),
-  thread_ts: z
-    .string()
-    .regex(/^\d{10}\.\d{6}$/, {
-      message: "Timestamp must be in the format '1234567890.123456'",
+export const ChannelSchema = z.object({
+  conversation_host_id: z.string().optional(),
+  created: z.number().optional(),
+  id: z.string().optional(),
+  is_archived: z.boolean().optional(),
+  name: z.string().optional(),
+  name_normalized: z.string().optional(),
+  num_members: z.number().optional(),
+  purpose: z
+    .object({
+      creator: z.string().optional(),
+      last_set: z.number().optional(),
+      value: z.string().optional(),
     })
-    .describe(
-      "The timestamp of the parent message in the format '1234567890.123456'. Timestamps in the format without the period can be converted by adding the period such that 6 numbers come after it."
-    ),
-  text: z.string().describe('The reply text'),
+    .optional(),
+  shared_team_ids: z.array(z.string()).optional(),
+  topic: z
+    .object({
+      creator: z.string().optional(),
+      last_set: z.number().optional(),
+      value: z.string().optional(),
+    })
+    .optional(),
+  updated: z.number().optional(),
 });
+
+const ReactionSchema = z
+  .object({
+    count: z.number().optional(),
+    name: z.string().optional(),
+    url: z.string().optional(),
+    users: z.array(z.string()).optional(),
+  })
+  .passthrough();
+
+const ConversationsHistoryMessageSchema = z
+  .object({
+    reactions: z.array(ReactionSchema).optional(),
+    reply_count: z.number().optional(),
+    reply_users: z.array(z.string()).optional(),
+    reply_users_count: z.number().optional(),
+    subtype: z.string().optional(),
+    text: z.string().optional(),
+    thread_ts: z.string().optional(),
+    ts: z.string().optional(),
+    type: z.string().optional(),
+    user: z.string().optional(),
+  })
+  .passthrough();
+
+const MemberSchema = z
+  .object({
+    deleted: z.boolean().optional(),
+    id: z.string().optional(),
+    is_admin: z.boolean().optional(),
+    is_app_user: z.boolean().optional(),
+    is_bot: z.boolean().optional(),
+    is_connector_bot: z.boolean().optional(),
+    is_email_confirmed: z.boolean().optional(),
+    is_invited_user: z.boolean().optional(),
+    is_owner: z.boolean().optional(),
+    is_primary_owner: z.boolean().optional(),
+    is_restricted: z.boolean().optional(),
+    is_ultra_restricted: z.boolean().optional(),
+    is_workflow_bot: z.boolean().optional(),
+    name: z.string().optional(),
+    real_name: z.string().optional(),
+    team_id: z.string().optional(),
+    updated: z.number().optional(),
+  })
+  .passthrough();
+
+const ProfileSchema = z.object({
+  display_name: z.string().optional(),
+  display_name_normalized: z.string().optional(),
+  email: z.string().email().optional(),
+  first_name: z.string().optional(),
+  last_name: z.string().optional(),
+  phone: z.string().optional(),
+  real_name: z.string().optional(),
+  real_name_normalized: z.string().optional(),
+  status_emoji: z.string().optional(),
+  status_emoji_display_info: z
+    .array(
+      z.object({
+        display_alias: z.string().optional(),
+        display_url: z.string().optional(),
+        emoji_name: z.string().optional(),
+        unicode: z.string().optional(),
+      })
+    )
+    .optional(),
+  status_emoji_url: z.string().url().optional(),
+  status_expiration: z.number().optional(),
+  status_text: z.string().optional(),
+  status_text_canonical: z.string().optional(),
+  title: z.string().optional(),
+});
+
+//
+// Request schemas
+//
 
 export const AddReactionRequestSchema = z.object({
   channel_id: z
     .string()
     .describe('The ID of the channel containing the message'),
+  reaction: z.string().describe('The name of the emoji reaction (without ::)'),
   timestamp: z
     .string()
     .regex(/^\d{10}\.\d{6}$/, {
@@ -47,7 +120,6 @@ export const AddReactionRequestSchema = z.object({
     .describe(
       "The timestamp of the message to react to in the format '1234567890.123456'"
     ),
-  reaction: z.string().describe('The name of the emoji reaction (without ::)'),
 });
 
 export const GetChannelHistoryRequestSchema = z.object({
@@ -92,4 +164,75 @@ export const GetUsersRequestSchema = z.object({
 
 export const GetUserProfileRequestSchema = z.object({
   user_id: z.string().describe('The ID of the user'),
+});
+
+export const ListChannelsRequestSchema = z.object({
+  cursor: z
+    .string()
+    .optional()
+    .describe('Pagination cursor for next page of results'),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(1000) // Align with Slack API's default limit (conversations.list is actually cursor-based)
+    .optional()
+    .default(100)
+    .describe('Maximum number of channels to return (default 100)'),
+});
+
+export const PostMessageRequestSchema = z.object({
+  channel_id: z.string().describe('The ID of the channel to post to'),
+  text: z.string().describe('The message text to post'),
+});
+
+export const ReplyToThreadRequestSchema = z.object({
+  channel_id: z
+    .string()
+    .describe('The ID of the channel containing the thread'),
+  text: z.string().describe('The reply text'),
+  thread_ts: z
+    .string()
+    .regex(/^\d{10}\.\d{6}$/, {
+      message: "Timestamp must be in the format '1234567890.123456'",
+    })
+    .describe(
+      "The timestamp of the parent message in the format '1234567890.123456'. Timestamps in the format without the period can be converted by adding the period such that 6 numbers come after it."
+    ),
+});
+
+//
+// Response schemas
+//
+
+const BaseResponseSchema = z
+  .object({
+    error: z.string().optional(),
+    ok: z.boolean().optional(),
+    response_metadata: z
+      .object({
+        next_cursor: z.string().optional(),
+      })
+      .optional(),
+  })
+  .passthrough();
+
+export const ConversationsHistoryResponseSchema = BaseResponseSchema.extend({
+  messages: z.array(ConversationsHistoryMessageSchema).optional(),
+});
+
+export const ConversationsRepliesResponseSchema = BaseResponseSchema.extend({
+  messages: z.array(ConversationsHistoryMessageSchema).optional(),
+});
+
+export const GetUsersResponseSchema = BaseResponseSchema.extend({
+  members: z.array(MemberSchema).optional(),
+});
+
+export const GetUserProfileResponseSchema = BaseResponseSchema.extend({
+  profile: ProfileSchema.optional(),
+});
+
+export const ListChannelsResponseSchema = BaseResponseSchema.extend({
+  channels: z.array(ChannelSchema).optional(),
 });

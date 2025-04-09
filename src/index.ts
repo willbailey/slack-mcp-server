@@ -18,6 +18,9 @@ import {
   GetThreadRepliesRequestSchema,
   GetUsersRequestSchema,
   GetUserProfileRequestSchema,
+  ListChannelsResponseSchema,
+  GetUsersResponseSchema,
+  GetUserProfileResponseSchema,
 } from './schemas.js';
 
 dotenv.config();
@@ -89,97 +92,131 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (!request.params) {
       throw new Error('Params are required');
     }
-    const args = request.params.arguments || {};
-
     switch (request.params.name) {
       case 'slack_list_channels': {
-        const parsedArgs = ListChannelsRequestSchema.parse(args);
+        const args = ListChannelsRequestSchema.parse(request.params.arguments);
         const response = await slackClient.conversations.list({
-          limit: parsedArgs.limit,
-          cursor: parsedArgs.cursor,
-          types: 'public_channel', // List public channels
+          limit: args.limit,
+          cursor: args.cursor,
+          types: 'public_channel', // Only public channels
         });
+        if (!response.ok) {
+          throw new Error(`Failed to list channels: ${response.error}`);
+        }
+        const parsed = ListChannelsResponseSchema.parse(response);
+
         return {
-          content: [{ type: 'text', text: JSON.stringify(response) }],
+          content: [{ type: 'text', text: JSON.stringify(parsed) }],
         };
       }
 
       case 'slack_post_message': {
-        const parsedArgs = PostMessageRequestSchema.parse(args);
+        const args = PostMessageRequestSchema.parse(request.params.arguments);
         const response = await slackClient.chat.postMessage({
-          channel: parsedArgs.channel_id,
-          text: parsedArgs.text,
+          channel: args.channel_id,
+          text: args.text,
         });
+        if (!response.ok) {
+          throw new Error(`Failed to post message: ${response.error}`);
+        }
         return {
           content: [{ type: 'text', text: JSON.stringify(response) }],
         };
       }
 
       case 'slack_reply_to_thread': {
-        const parsedArgs = ReplyToThreadRequestSchema.parse(args);
+        const args = ReplyToThreadRequestSchema.parse(request.params.arguments);
         const response = await slackClient.chat.postMessage({
-          channel: parsedArgs.channel_id,
-          thread_ts: parsedArgs.thread_ts,
-          text: parsedArgs.text,
+          channel: args.channel_id,
+          thread_ts: args.thread_ts,
+          text: args.text,
         });
+        if (!response.ok) {
+          throw new Error(`Failed to reply to thread: ${response.error}`);
+        }
         return {
           content: [{ type: 'text', text: JSON.stringify(response) }],
         };
       }
       case 'slack_add_reaction': {
-        const parsedArgs = AddReactionRequestSchema.parse(args);
+        const args = AddReactionRequestSchema.parse(request.params.arguments);
         const response = await slackClient.reactions.add({
-          channel: parsedArgs.channel_id,
-          timestamp: parsedArgs.timestamp,
-          name: parsedArgs.reaction,
+          channel: args.channel_id,
+          timestamp: args.timestamp,
+          name: args.reaction,
         });
+        if (!response.ok) {
+          throw new Error(`Failed to add reaction: ${response.error}`);
+        }
         return {
           content: [{ type: 'text', text: JSON.stringify(response) }],
         };
       }
 
       case 'slack_get_channel_history': {
-        const parsedArgs = GetChannelHistoryRequestSchema.parse(args);
+        const args = GetChannelHistoryRequestSchema.parse(
+          request.params.arguments
+        );
         const response = await slackClient.conversations.history({
-          channel: parsedArgs.channel_id,
-          limit: parsedArgs.limit,
+          channel: args.channel_id,
+          limit: args.limit,
+          cursor: args.cursor,
         });
+        if (!response.ok) {
+          throw new Error(`Failed to get channel history: ${response.error}`);
+        }
         return {
           content: [{ type: 'text', text: JSON.stringify(response) }],
         };
       }
 
       case 'slack_get_thread_replies': {
-        const parsedArgs = GetThreadRepliesRequestSchema.parse(args);
-        // conversations.replies API
+        const args = GetThreadRepliesRequestSchema.parse(
+          request.params.arguments
+        );
         const response = await slackClient.conversations.replies({
-          channel: parsedArgs.channel_id,
-          ts: parsedArgs.thread_ts,
-          // Specify limit and cursor
+          channel: args.channel_id,
+          ts: args.thread_ts,
+          limit: args.limit,
+          cursor: args.cursor,
         });
+        if (!response.ok) {
+          throw new Error(`Failed to get thread replies: ${response.error}`);
+        }
         return {
           content: [{ type: 'text', text: JSON.stringify(response) }],
         };
       }
 
       case 'slack_get_users': {
-        const parsedArgs = GetUsersRequestSchema.parse(args);
+        const args = GetUsersRequestSchema.parse(request.params.arguments);
         const response = await slackClient.users.list({
-          limit: parsedArgs.limit,
-          cursor: parsedArgs.cursor,
+          limit: args.limit,
+          cursor: args.cursor,
         });
+        if (!response.ok) {
+          throw new Error(`Failed to get users: ${response.error}`);
+        }
+        const parsed = GetUsersResponseSchema.parse(response);
+
         return {
-          content: [{ type: 'text', text: JSON.stringify(response) }],
+          content: [{ type: 'text', text: JSON.stringify(parsed) }],
         };
       }
 
       case 'slack_get_user_profile': {
-        const parsedArgs = GetUserProfileRequestSchema.parse(args);
+        const args = GetUserProfileRequestSchema.parse(
+          request.params.arguments
+        );
         const response = await slackClient.users.profile.get({
-          user: parsedArgs.user_id,
+          user: args.user_id,
         });
+        if (!response.ok) {
+          throw new Error(`Failed to get user profile: ${response.error}`);
+        }
+        const parsed = GetUserProfileResponseSchema.parse(response);
         return {
-          content: [{ type: 'text', text: JSON.stringify(response) }],
+          content: [{ type: 'text', text: JSON.stringify(parsed) }],
         };
       }
 
