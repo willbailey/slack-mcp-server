@@ -21,6 +21,10 @@ import {
   ListChannelsResponseSchema,
   GetUsersResponseSchema,
   GetUserProfileResponseSchema,
+  SearchMessagesRequestSchema,
+  SearchMessagesResponseSchema,
+  ConversationsHistoryResponseSchema,
+  ConversationsRepliesResponseSchema,
 } from './schemas.js';
 
 dotenv.config();
@@ -83,6 +87,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         description: "Get a user's profile information",
         inputSchema: zodToJsonSchema(GetUserProfileRequestSchema),
       },
+      {
+        name: 'slack_search_messages',
+        description: 'Search for messages in the workspace',
+        inputSchema: zodToJsonSchema(SearchMessagesRequestSchema),
+      },
     ],
   };
 });
@@ -120,7 +129,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error(`Failed to post message: ${response.error}`);
         }
         return {
-          content: [{ type: 'text', text: JSON.stringify(response) }],
+          content: [{ type: 'text', text: 'Message posted successfully' }],
         };
       }
 
@@ -135,7 +144,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error(`Failed to reply to thread: ${response.error}`);
         }
         return {
-          content: [{ type: 'text', text: JSON.stringify(response) }],
+          content: [
+            { type: 'text', text: 'Reply sent to thread successfully' },
+          ],
         };
       }
       case 'slack_add_reaction': {
@@ -149,7 +160,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error(`Failed to add reaction: ${response.error}`);
         }
         return {
-          content: [{ type: 'text', text: JSON.stringify(response) }],
+          content: [{ type: 'text', text: 'Reaction added successfully' }],
         };
       }
 
@@ -165,8 +176,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!response.ok) {
           throw new Error(`Failed to get channel history: ${response.error}`);
         }
+        const parsedResponse =
+          ConversationsHistoryResponseSchema.parse(response);
         return {
-          content: [{ type: 'text', text: JSON.stringify(response) }],
+          content: [{ type: 'text', text: JSON.stringify(parsedResponse) }],
         };
       }
 
@@ -183,8 +196,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!response.ok) {
           throw new Error(`Failed to get thread replies: ${response.error}`);
         }
+        const parsedResponse =
+          ConversationsRepliesResponseSchema.parse(response);
         return {
-          content: [{ type: 'text', text: JSON.stringify(response) }],
+          content: [{ type: 'text', text: JSON.stringify(parsedResponse) }],
         };
       }
 
@@ -215,6 +230,47 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error(`Failed to get user profile: ${response.error}`);
         }
         const parsed = GetUserProfileResponseSchema.parse(response);
+        return {
+          content: [{ type: 'text', text: JSON.stringify(parsed) }],
+        };
+      }
+
+      case 'slack_search_messages': {
+        const parsedParams = SearchMessagesRequestSchema.parse(
+          request.params.params
+        );
+
+        let query = parsedParams.query;
+        if (parsedParams.in_channel) {
+          query += ` in:${parsedParams.in_channel}`;
+        }
+        if (parsedParams.in_group) {
+          query += ` in:${parsedParams.in_group}`;
+        }
+        if (parsedParams.in_dm) {
+          query += ` in:<@${parsedParams.in_dm}>`;
+        }
+        if (parsedParams.from_user) {
+          query += ` from:<@${parsedParams.from_user}>`;
+        }
+        if (parsedParams.from_bot) {
+          query += ` from:${parsedParams.from_bot}`;
+        }
+
+        const response = await slackClient.search.messages({
+          query: query,
+          highlight: parsedParams.highlight,
+          sort: parsedParams.sort,
+          sort_dir: parsedParams.sort_dir,
+          count: parsedParams.count,
+          page: parsedParams.page,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to search messages: ${response.error}`);
+        }
+
+        const parsed = SearchMessagesResponseSchema.parse(response);
         return {
           content: [{ type: 'text', text: JSON.stringify(parsed) }],
         };

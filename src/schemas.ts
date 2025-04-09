@@ -103,6 +103,22 @@ const ProfileSchema = z.object({
   title: z.string().optional(),
 });
 
+const SearchMessageSchema = z
+  .object({
+    channel: z
+      .object({
+        id: z.string().optional(),
+        name: z.string().optional(),
+      })
+      .optional(),
+    permalink: z.string().url().optional(),
+    text: z.string().optional(),
+    ts: z.string().optional(),
+    type: z.string().optional(),
+    user: z.string().optional(),
+  })
+  .passthrough();
+
 //
 // Request schemas
 //
@@ -124,6 +140,10 @@ export const AddReactionRequestSchema = z.object({
 
 export const GetChannelHistoryRequestSchema = z.object({
   channel_id: z.string().describe('The ID of the channel'),
+  cursor: z
+    .string()
+    .optional()
+    .describe('Pagination cursor for next page of results'),
   limit: z
     .number()
     .int()
@@ -146,6 +166,18 @@ export const GetThreadRepliesRequestSchema = z.object({
     .describe(
       "The timestamp of the parent message in the format '1234567890.123456'. Timestamps in the format without the period can be converted by adding the period such that 6 numbers come after it."
     ),
+  cursor: z
+    .string()
+    .optional()
+    .describe('Pagination cursor for next page of results'),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(1000)
+    .optional()
+    .default(100)
+    .describe('Number of replies to retrieve (default 100)'),
 });
 
 export const GetUsersRequestSchema = z.object({
@@ -201,6 +233,73 @@ export const ReplyToThreadRequestSchema = z.object({
     ),
 });
 
+export const SearchMessagesRequestSchema = z.object({
+  query: z.string().describe('Basic search query'),
+
+  in_channel: z
+    .string()
+    .optional()
+    .describe('Search within a specific channel (channel name or ID)'),
+  in_group: z
+    .string()
+    .optional()
+    .describe('Search within a specific private group (group name or ID)'),
+  in_dm: z
+    .string()
+    .optional()
+    .describe('Search within a specific direct message (user ID)'),
+  from_user: z
+    .string()
+    .optional()
+    .describe('Search for messages from a specific user (username or ID)'),
+  from_bot: z
+    .string()
+    .optional()
+    .describe('Search for messages from a specific bot (bot name)'),
+
+  highlight: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Enable highlighting of search results'),
+  sort: z
+    .enum(['score', 'timestamp'])
+    .optional()
+    .default('score')
+    .describe('Search result sort method (score or timestamp)'),
+  sort_dir: z
+    .enum(['asc', 'desc'])
+    .optional()
+    .default('desc')
+    .describe('Sort direction (ascending or descending)'),
+
+  count: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .default(20)
+    .describe('Number of results per page (max 100)'),
+  page: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .default(1)
+    .describe('Page number of results (max 100)'),
+});
+
+const SearchPaginationSchema = z.object({
+  first: z.number().optional(),
+  last: z.number().optional(),
+  page: z.number().optional(),
+  page_count: z.number().optional(),
+  per_page: z.number().optional(),
+  total_count: z.number().optional(),
+});
+
 //
 // Response schemas
 //
@@ -235,4 +334,13 @@ export const GetUserProfileResponseSchema = BaseResponseSchema.extend({
 
 export const ListChannelsResponseSchema = BaseResponseSchema.extend({
   channels: z.array(ChannelSchema).optional(),
+});
+
+export const SearchMessagesResponseSchema = BaseResponseSchema.extend({
+  messages: z
+    .object({
+      matches: z.array(SearchMessageSchema).optional(),
+      pagination: SearchPaginationSchema.optional(),
+    })
+    .optional(),
 });
