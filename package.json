@@ -1,7 +1,7 @@
 {
-  "name": "slack-mcp-server",
+  "name": "@ubie-oss/slack-mcp-server",
   "version": "0.0.1",
-  "description": "Our own slack mcp server",
+  "description": "A Slack MCP server",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
