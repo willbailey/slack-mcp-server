@@ -29,7 +29,22 @@ import {
 
 dotenv.config();
 
+if (!process.env.SLACK_BOT_TOKEN) {
+  console.error(
+    'SLACK_BOT_TOKEN is not set. Please set it in your environment or .env file.'
+  );
+  process.exit(1);
+}
+
+if (!process.env.SLACK_USER_TOKEN) {
+  console.error(
+    'SLACK_USER_TOKEN is not set. Please set it in your environment or .env file.'
+  );
+  process.exit(1);
+}
+
 const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
+const userClient = new WebClient(process.env.SLACK_USER_TOKEN);
 
 const server = new Server(
   {
@@ -237,7 +252,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'slack_search_messages': {
         const parsedParams = SearchMessagesRequestSchema.parse(
-          request.params.params
+          request.params.arguments
         );
 
         let query = parsedParams.query;
@@ -257,7 +272,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           query += ` from:${parsedParams.from_bot}`;
         }
 
-        const response = await slackClient.search.messages({
+        const response = await userClient.search.messages({
           query: query,
           highlight: parsedParams.highlight,
           sort: parsedParams.sort,

@@ -4,31 +4,33 @@ import { z } from 'zod';
 // Basic schemas
 //
 
-export const ChannelSchema = z.object({
-  conversation_host_id: z.string().optional(),
-  created: z.number().optional(),
-  id: z.string().optional(),
-  is_archived: z.boolean().optional(),
-  name: z.string().optional(),
-  name_normalized: z.string().optional(),
-  num_members: z.number().optional(),
-  purpose: z
-    .object({
-      creator: z.string().optional(),
-      last_set: z.number().optional(),
-      value: z.string().optional(),
-    })
-    .optional(),
-  shared_team_ids: z.array(z.string()).optional(),
-  topic: z
-    .object({
-      creator: z.string().optional(),
-      last_set: z.number().optional(),
-      value: z.string().optional(),
-    })
-    .optional(),
-  updated: z.number().optional(),
-});
+export const ChannelSchema = z
+  .object({
+    conversation_host_id: z.string().optional(),
+    created: z.number().optional(),
+    id: z.string().optional(),
+    is_archived: z.boolean().optional(),
+    name: z.string().optional(),
+    name_normalized: z.string().optional(),
+    num_members: z.number().optional(),
+    purpose: z
+      .object({
+        creator: z.string().optional(),
+        last_set: z.number().optional(),
+        value: z.string().optional(),
+      })
+      .optional(),
+    shared_team_ids: z.array(z.string()).optional(),
+    topic: z
+      .object({
+        creator: z.string().optional(),
+        last_set: z.number().optional(),
+        value: z.string().optional(),
+      })
+      .optional(),
+    updated: z.number().optional(),
+  })
+  .strip();
 
 const ReactionSchema = z
   .object({
@@ -37,7 +39,7 @@ const ReactionSchema = z
     url: z.string().optional(),
     users: z.array(z.string()).optional(),
   })
-  .passthrough();
+  .strip();
 
 const ConversationsHistoryMessageSchema = z
   .object({
@@ -52,7 +54,7 @@ const ConversationsHistoryMessageSchema = z
     type: z.string().optional(),
     user: z.string().optional(),
   })
-  .passthrough();
+  .strip();
 
 const MemberSchema = z
   .object({
@@ -74,34 +76,21 @@ const MemberSchema = z
     team_id: z.string().optional(),
     updated: z.number().optional(),
   })
-  .passthrough();
+  .strip();
 
-const ProfileSchema = z.object({
-  display_name: z.string().optional(),
-  display_name_normalized: z.string().optional(),
-  email: z.string().email().optional(),
-  first_name: z.string().optional(),
-  last_name: z.string().optional(),
-  phone: z.string().optional(),
-  real_name: z.string().optional(),
-  real_name_normalized: z.string().optional(),
-  status_emoji: z.string().optional(),
-  status_emoji_display_info: z
-    .array(
-      z.object({
-        display_alias: z.string().optional(),
-        display_url: z.string().optional(),
-        emoji_name: z.string().optional(),
-        unicode: z.string().optional(),
-      })
-    )
-    .optional(),
-  status_emoji_url: z.string().url().optional(),
-  status_expiration: z.number().optional(),
-  status_text: z.string().optional(),
-  status_text_canonical: z.string().optional(),
-  title: z.string().optional(),
-});
+const ProfileSchema = z
+  .object({
+    display_name: z.string().optional(),
+    display_name_normalized: z.string().optional(),
+    email: z.string().email().optional(),
+    first_name: z.string().optional(),
+    last_name: z.string().optional(),
+    phone: z.string().optional(),
+    real_name: z.string().optional(),
+    real_name_normalized: z.string().optional(),
+    title: z.string().optional(),
+  })
+  .strip();
 
 const SearchMessageSchema = z
   .object({
@@ -117,7 +106,7 @@ const SearchMessageSchema = z
     type: z.string().optional(),
     user: z.string().optional(),
   })
-  .passthrough();
+  .strip();
 
 //
 // Request schemas
@@ -234,7 +223,7 @@ export const ReplyToThreadRequestSchema = z.object({
 });
 
 export const SearchMessagesRequestSchema = z.object({
-  query: z.string().describe('Basic search query'),
+  query: z.string().optional().default('').describe('Basic search query'),
 
   in_channel: z
     .string()
@@ -314,7 +303,7 @@ const BaseResponseSchema = z
       })
       .optional(),
   })
-  .passthrough();
+  .strip();
 
 export const ConversationsHistoryResponseSchema = BaseResponseSchema.extend({
   messages: z.array(ConversationsHistoryMessageSchema).optional(),

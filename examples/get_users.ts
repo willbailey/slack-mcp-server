@@ -15,13 +15,20 @@ config();
 
 // Get and validate necessary environment variables
 const slackToken = process.env.EXMAPLES_SLACK_BOT_TOKEN;
+const userToken = process.env.EXMAPLES_SLACK_USER_TOKEN;
+
 if (!slackToken) {
   throw new Error('EXMAPLES_SLACK_BOT_TOKEN environment variable is required');
+}
+
+if (!userToken) {
+  throw new Error('EXMAPLES_SLACK_USER_TOKEN environment variable is required');
 }
 
 // After validation, can be safely treated as a string
 const env = {
   SLACK_BOT_TOKEN: slackToken,
+  SLACK_USER_TOKEN: userToken,
 } as const satisfies Record<string, string>;
 
 async function main() {
@@ -61,9 +68,7 @@ async function main() {
       {
         name: 'slack_get_users',
         arguments: {
-          // Optionally specify limit and cursor
           limit: 100,
-          // cursor: 'xxx', // For pagination
         },
       },
       CallToolResultSchema
