@@ -213,6 +213,11 @@ export const ListChannelsRequestSchema = z.object({
 export const PostMessageRequestSchema = z.object({
   channel_id: z.string().describe('The ID of the channel to post to'),
   text: z.string().describe('The message text to post'),
+  file_ids: z
+    .array(z.string())
+    .nonempty()
+    .optional()
+    .describe('IDs of already uploaded files to include in the message'),
 });
 
 export const ReplyToThreadRequestSchema = z.object({
@@ -350,4 +355,98 @@ export const SearchMessagesResponseSchema = BaseResponseSchema.extend({
       pagination: SearchPaginationSchema.optional(),
     })
     .optional(),
+});
+
+//
+// File-related schemas
+//
+
+export const FileSchema = z
+  .object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+    title: z.string().optional(),
+    mimetype: z.string().optional(),
+    filetype: z.string().optional(),
+    size: z.number().optional(),
+    url_private: z.string().url().optional(),
+    url_private_download: z.string().url().optional(),
+  })
+  .strip();
+
+export const UploadFileRequestSchema = z.object({
+  filename: z.string().describe('Name of the file to upload'),
+  content_base64: z
+    .string()
+    .describe('Base64 encoded file contents to upload'),
+  title: z.string().optional().describe('Title of the file in Slack'),
+  channel_id: z
+    .string()
+    .optional()
+    .describe('Channel or DM conversation ID to share the file'),
+});
+
+export const UploadFileResponseSchema = BaseResponseSchema.extend({
+  file: z
+    .object({
+      id: z.string().optional(),
+    })
+    .optional(),
+});
+
+export const ListFilesRequestSchema = z.object({
+  user: z.string().optional().describe('Filter files created by user ID'),
+  channel: z
+    .string()
+    .optional()
+    .describe('Filter files visible in a channel'),
+  types: z
+    .string()
+    .optional()
+    .describe('Filter by file types (comma separated)'),
+  ts_from: z
+    .number()
+    .optional()
+    .describe('Filter for files created after this timestamp'),
+  ts_to: z
+    .number()
+    .optional()
+    .describe('Filter for files created before this timestamp'),
+  cursor: z
+    .string()
+    .optional()
+    .describe('Pagination cursor for next page of results'),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(1000)
+    .optional()
+    .default(100)
+    .describe('Maximum number of files to return'),
+});
+
+export const ListFilesResponseSchema = BaseResponseSchema.extend({
+  files: z.array(FileSchema).optional(),
+});
+
+export const GetFileInfoRequestSchema = z.object({
+  file_id: z.string().describe('ID of the file to fetch'),
+});
+
+export const GetFileInfoResponseSchema = BaseResponseSchema.extend({
+  file: FileSchema.optional(),
+});
+
+export const DeleteFileRequestSchema = z.object({
+  file_id: z.string().describe('ID of the file to delete'),
+});
+
+export const SendFileMessageRequestSchema = z.object({
+  channel_id: z.string().describe('Channel or DM to post the file in'),
+  file_ids: z
+    .array(z.string())
+    .nonempty()
+    .describe('IDs of the files to send'),
+  text: z.string().optional().describe('Additional message text'),
 });

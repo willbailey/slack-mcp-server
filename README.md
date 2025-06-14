@@ -14,7 +14,7 @@ This server supports both traditional and modern MCP transport methods:
 Available tools:
 
 - `slack_list_channels` - List public channels in the workspace with pagination
-- `slack_post_message` - Post a new message to a Slack channel
+- `slack_post_message` - Post a new message to a Slack channel (optionally include files or images)
 - `slack_reply_to_thread` - Reply to a specific message thread in Slack
 - `slack_add_reaction` - Add a reaction emoji to a message
 - `slack_get_channel_history` - Get recent messages from a channel
@@ -23,6 +23,11 @@ Available tools:
 - `slack_get_user_profile` - Get a user's profile information
 - `slack_get_user_profiles` - Get multiple users' profile information in bulk (efficient for batch operations)
 - `slack_search_messages` - Search for messages in the workspace
+- `slack_upload_file` - Upload a file and optionally share it
+- `slack_list_files` - List files visible to the authenticated user
+- `slack_get_file_info` - Get metadata about a file
+- `slack_delete_file` - Delete a file the bot owns
+- `slack_send_file` - Send existing files or images in a message
 
 ## Quick Start
 
@@ -47,6 +52,13 @@ You can also create a `.env` file to set these environment variables:
 SLACK_BOT_TOKEN=xoxb-your-bot-token
 SLACK_USER_TOKEN=xoxp-your-user-token
 ```
+
+Your Slack app must include the following OAuth scopes:
+
+- `chat:write` – post messages and share files
+- `files:write` – upload and delete files
+- `files:read` – list and fetch file info
+- Image files are automatically sent using Slack image blocks when possible
 
 ### Usage
 
