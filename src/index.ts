@@ -30,6 +30,14 @@ import {
   SearchMessagesResponseSchema,
   ConversationsHistoryResponseSchema,
   ConversationsRepliesResponseSchema,
+  UploadFileRequestSchema,
+  UploadFileResponseSchema,
+  ListFilesRequestSchema,
+  ListFilesResponseSchema,
+  GetFileInfoRequestSchema,
+  GetFileInfoResponseSchema,
+  DeleteFileRequestSchema,
+  SendFileMessageRequestSchema,
 } from './schemas.js';
 
 dotenv.config();
@@ -101,6 +109,32 @@ function createServer(): Server {
     }
   );
 
+  async function buildBlocksFromFileIds(fileIds: string[]) {
+    const infos = await Promise.all(
+      fileIds.map((id) => userClient.files.info({ file: id }))
+    );
+    return infos.map((info, index) => {
+      if (!info.ok || !info.file) {
+        throw new Error(
+          `Failed to fetch file info for ${fileIds[index]}: ${info.error}`
+        );
+      }
+      const file: any = info.file;
+      if (file.mimetype && /^image\//.test(file.mimetype)) {
+        return {
+          type: 'image',
+          image_url: file.url_private,
+          alt_text: file.title ?? file.name ?? 'image',
+        };
+      }
+      return {
+        type: 'file',
+        external_id: file.id,
+        source: 'remote',
+      };
+    });
+  }
+
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
       tools: [
@@ -111,7 +145,7 @@ function createServer(): Server {
         },
         {
           name: 'slack_post_message',
-          description: 'Post a new message to a Slack channel',
+          description: 'Post a new message to a Slack channel (optionally with files)',
           inputSchema: zodToJsonSchema(PostMessageRequestSchema),
         },
         {
@@ -155,6 +189,31 @@ function createServer(): Server {
           description: 'Search for messages in the workspace',
           inputSchema: zodToJsonSchema(SearchMessagesRequestSchema),
         },
+        {
+          name: 'slack_upload_file',
+          description: 'Upload a file and optionally share it to a channel or DM',
+          inputSchema: zodToJsonSchema(UploadFileRequestSchema),
+        },
+        {
+          name: 'slack_list_files',
+          description: 'List files visible to the authenticated user',
+          inputSchema: zodToJsonSchema(ListFilesRequestSchema),
+        },
+        {
+          name: 'slack_get_file_info',
+          description: 'Get metadata about a specific file',
+          inputSchema: zodToJsonSchema(GetFileInfoRequestSchema),
+        },
+        {
+          name: 'slack_delete_file',
+          description: 'Delete a file the bot owns',
+          inputSchema: zodToJsonSchema(DeleteFileRequestSchema),
+        },
+        {
+          name: 'slack_send_file',
+          description: 'Send existing files in a message',
+          inputSchema: zodToJsonSchema(SendFileMessageRequestSchema),
+        },
       ],
     };
   });
@@ -186,10 +245,14 @@ function createServer(): Server {
 
         case 'slack_post_message': {
           const args = PostMessageRequestSchema.parse(request.params.arguments);
-          const response = await slackClient.chat.postMessage({
+          const messageParams: any = {
             channel: args.channel_id,
             text: args.text,
-          });
+          };
+          if (args.file_ids) {
+            messageParams.blocks = await buildBlocksFromFileIds(args.file_ids);
+          }
+          const response = await slackClient.chat.postMessage(messageParams);
           if (!response.ok) {
             throw new Error(`Failed to post message: ${response.error}`);
           }
@@ -380,6 +443,104 @@ function createServer(): Server {
           const parsed = SearchMessagesResponseSchema.parse(response);
           return {
             content: [{ type: 'text', text: JSON.stringify(parsed) }],
+          };
+        }
+
+        case 'slack_upload_file': {
+          const args = UploadFileRequestSchema.parse(request.params.arguments);
+          const fileBuffer = Buffer.from(args.content_base64, 'base64');
+          const reserve = await slackClient.files.getUploadURLExternal({
+            filename: args.filename,
+            length: fileBuffer.length,
+          });
+          if (!reserve.ok || !reserve.upload_url || !reserve.file_id) {
+            throw new Error(`Failed to reserve upload: ${reserve.error}`);
+          }
+          const putResponse = await fetch(reserve.upload_url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: fileBuffer,
+          });
+          if (!putResponse.ok) {
+            throw new Error(`Failed to upload file bytes: ${putResponse.status}`);
+          }
+          const complete = await slackClient.files.completeUploadExternal({
+            files: [
+              {
+                id: reserve.file_id,
+                title: args.title ?? args.filename,
+              },
+            ],
+            channel_id: args.channel_id,
+          });
+          if (!complete.ok) {
+            throw new Error(`Failed to complete upload: ${complete.error}`);
+          }
+          const parsed = UploadFileResponseSchema.parse({
+            ...complete,
+            file: { id: reserve.file_id },
+          });
+          return {
+            content: [{ type: 'text', text: JSON.stringify(parsed) }],
+          };
+        }
+
+        case 'slack_list_files': {
+          const args = ListFilesRequestSchema.parse(request.params.arguments);
+          const response = await userClient.files.list({
+            user: args.user,
+            channel: args.channel,
+            types: args.types,
+            ts_from: args.ts_from,
+            ts_to: args.ts_to,
+            cursor: args.cursor,
+            limit: args.limit,
+          } as any);
+          if (!response.ok) {
+            throw new Error(`Failed to list files: ${response.error}`);
+          }
+          const parsed = ListFilesResponseSchema.parse(response);
+          return {
+            content: [{ type: 'text', text: JSON.stringify(parsed) }],
+          };
+        }
+
+        case 'slack_get_file_info': {
+          const args = GetFileInfoRequestSchema.parse(request.params.arguments);
+          const response = await userClient.files.info({ file: args.file_id });
+          if (!response.ok) {
+            throw new Error(`Failed to get file info: ${response.error}`);
+          }
+          const parsed = GetFileInfoResponseSchema.parse(response);
+          return {
+            content: [{ type: 'text', text: JSON.stringify(parsed) }],
+          };
+        }
+
+        case 'slack_delete_file': {
+          const args = DeleteFileRequestSchema.parse(request.params.arguments);
+          const response = await slackClient.files.delete({ file: args.file_id });
+          if (!response.ok) {
+            throw new Error(`Failed to delete file: ${response.error}`);
+          }
+          return {
+            content: [{ type: 'text', text: 'File deleted successfully' }],
+          };
+        }
+
+        case 'slack_send_file': {
+          const args = SendFileMessageRequestSchema.parse(request.params.arguments);
+          const blocks = await buildBlocksFromFileIds(args.file_ids);
+          const response = await slackClient.chat.postMessage({
+            channel: args.channel_id,
+            text: args.text ?? '',
+            blocks,
+          });
+          if (!response.ok) {
+            throw new Error(`Failed to send file: ${response.error}`);
+          }
+          return {
+            content: [{ type: 'text', text: 'File sent successfully' }],
           };
         }
 
