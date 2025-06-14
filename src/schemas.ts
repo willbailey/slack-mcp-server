@@ -405,13 +405,13 @@ export const ListFilesRequestSchema = z.object({
     .optional()
     .describe('Filter by file types (comma separated)'),
   ts_from: z
-    .number()
+    .string()
     .optional()
-    .describe('Filter for files created after this timestamp'),
+    .describe('Filter for files created after this timestamp (UNIX epoch in seconds)'),
   ts_to: z
-    .number()
+    .string()
     .optional()
-    .describe('Filter for files created before this timestamp'),
+    .describe('Filter for files created before this timestamp (UNIX epoch in seconds)'),
   cursor: z
     .string()
     .optional()
