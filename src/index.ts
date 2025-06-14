@@ -495,7 +495,7 @@ function createServer(): Server {
             ts_to: args.ts_to,
             cursor: args.cursor,
             limit: args.limit,
-          });
+          } as any);
           if (!response.ok) {
             throw new Error(`Failed to list files: ${response.error}`);
           }
