@@ -44,21 +44,26 @@ NOTE: Its now hosted in GitHub Registry so you need your PAT.
 You need to set the following environment variables:
 
 - `SLACK_BOT_TOKEN`: Slack Bot User OAuth Token
-- `SLACK_USER_TOKEN`: Slack User OAuth Token (required for some features like message search)
+
+> **Note**
+> A separate user-level token is **no longer required**. All operations –
+> including file uploads, downloads and message search – are performed via the
+> bot token, provided it has the appropriate OAuth scopes.
 
 You can also create a `.env` file to set these environment variables:
 
 ```
 SLACK_BOT_TOKEN=xoxb-your-bot-token
-SLACK_USER_TOKEN=xoxp-your-user-token
 ```
 
-Your Slack app must include the following OAuth scopes:
+Your Slack app must include the following OAuth scopes **on the bot token**:
 
 - `chat:write` – post messages and share files
 - `files:write` – upload and delete files
 - `files:read` – list and fetch file info
-- Image files are automatically sent using Slack image blocks when possible
+- `search:read` – (optional) enable message search via `slack_search_messages`
+
+Image files are automatically sent using Slack image blocks when possible.
 
 ### Usage
 
@@ -112,7 +117,7 @@ node node_modules/.bin/slack-mcp-server -port 3000
 
 Start the server:
 ```bash
-SLACK_BOT_TOKEN=<your-bot-token> SLACK_USER_TOKEN=<your-user-token> npx @ubie-oss/slack-mcp-server -port 3000
+SLACK_BOT_TOKEN=<your-bot-token> npx @ubie-oss/slack-mcp-server -port 3000
 ```
 
 Connect to: `http://localhost:3000/mcp`

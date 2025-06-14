@@ -49,15 +49,11 @@ if (!process.env.SLACK_BOT_TOKEN) {
   process.exit(1);
 }
 
-if (!process.env.SLACK_USER_TOKEN) {
-  console.error(
-    'SLACK_USER_TOKEN is not set. Please set it in your environment or .env file.'
-  );
-  process.exit(1);
-}
+// For the current implementation we rely solely on the bot token. All API
+// interactions are performed on behalf of the bot user, so we deliberately
+// drop the previous requirement for a user-level OAuth token.
 
 const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
-const userClient = new WebClient(process.env.SLACK_USER_TOKEN);
 
 // Parse command line arguments
 function parseArguments() {
@@ -111,7 +107,7 @@ function createServer(): Server {
 
   async function buildBlocksFromFileIds(fileIds: string[]) {
     const infos = await Promise.all(
-      fileIds.map((id) => userClient.files.info({ file: id }))
+      fileIds.map((id) => slackClient.files.info({ file: id }))
     );
     return infos.map((info, index) => {
       if (!info.ok || !info.file) {
@@ -184,11 +180,7 @@ function createServer(): Server {
           description: 'Get multiple users profile information in bulk',
           inputSchema: zodToJsonSchema(GetUserProfilesRequestSchema),
         },
-        {
-          name: 'slack_search_messages',
-          description: 'Search for messages in the workspace',
-          inputSchema: zodToJsonSchema(SearchMessagesRequestSchema),
-        },
+        // Search capability disabled for now – see conversation context
         {
           name: 'slack_upload_file',
           description: 'Upload a file and optionally share it to a channel or DM',
@@ -405,46 +397,7 @@ function createServer(): Server {
           };
         }
 
-        case 'slack_search_messages': {
-          const parsedParams = SearchMessagesRequestSchema.parse(
-            request.params.arguments
-          );
-
-          let query = parsedParams.query;
-          if (parsedParams.in_channel) {
-            query += ` in:${parsedParams.in_channel}`;
-          }
-          if (parsedParams.in_group) {
-            query += ` in:${parsedParams.in_group}`;
-          }
-          if (parsedParams.in_dm) {
-            query += ` in:<@${parsedParams.in_dm}>`;
-          }
-          if (parsedParams.from_user) {
-            query += ` from:<@${parsedParams.from_user}>`;
-          }
-          if (parsedParams.from_bot) {
-            query += ` from:${parsedParams.from_bot}`;
-          }
-
-          const response = await userClient.search.messages({
-            query: query,
-            highlight: parsedParams.highlight,
-            sort: parsedParams.sort,
-            sort_dir: parsedParams.sort_dir,
-            count: parsedParams.count,
-            page: parsedParams.page,
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to search messages: ${response.error}`);
-          }
-
-          const parsed = SearchMessagesResponseSchema.parse(response);
-          return {
-            content: [{ type: 'text', text: JSON.stringify(parsed) }],
-          };
-        }
+        // 'slack_search_messages' temporarily disabled
 
         case 'slack_upload_file': {
           const args = UploadFileRequestSchema.parse(request.params.arguments);
@@ -487,7 +440,7 @@ function createServer(): Server {
 
         case 'slack_list_files': {
           const args = ListFilesRequestSchema.parse(request.params.arguments);
-          const response = await userClient.files.list({
+          const response = await slackClient.files.list({
             user: args.user,
             channel: args.channel,
             types: args.types,
@@ -507,7 +460,7 @@ function createServer(): Server {
 
         case 'slack_get_file_info': {
           const args = GetFileInfoRequestSchema.parse(request.params.arguments);
-          const response = await userClient.files.info({ file: args.file_id });
+          const response = await slackClient.files.info({ file: args.file_id });
           if (!response.ok) {
             throw new Error(`Failed to get file info: ${response.error}`);
           }
